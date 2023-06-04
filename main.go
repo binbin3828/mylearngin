@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"net/http/httputil"
@@ -30,6 +32,10 @@ func myHandler() gin.HandlerFunc {
 func main() {
 
 	ginServer := gin.Default()
+
+	// 初始化 session 中间件
+	store := cookie.NewStore([]byte("secret"))
+	ginServer.Use(sessions.Sessions("mysession", store))
 
 	//注册中间件
 	ginServer.Use(myHandler())
@@ -183,13 +189,22 @@ func main() {
 	lwApiRouter.Any("*path", func(c *gin.Context) {
 		if c.Request.URL.Path == "/apps/lw/api/sign/in" {
 			//处理登录
+			session := sessions.Default(c)
+			session.Set("userid", "123")
+			session.Set("username", "gb123")
+			session.Save()
 			fmt.Println("处理登录成功")
 		} else if c.Request.URL.Path == "/apps/lw/api/sign/out" {
 			//处理登出
+			session := sessions.Default(c)
+			session.Clear()
+			session.Save()
 			fmt.Println("处理登出成功")
 		} else {
 			c.Request.URL.Path = "/lw2" + c.Param("path")
 			fmt.Println("c.Request.URL.Path:", c.Request.URL.Path)
+			session := sessions.Default(c)
+			value := session.Get("userid")
 			proxy.ServeHTTP(c.Writer, c.Request)
 		}
 	})
