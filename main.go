@@ -6,9 +6,11 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strings"
 )
 
@@ -30,6 +32,15 @@ func myHandler() gin.HandlerFunc {
 }
 
 func main() {
+
+	//gin内置的日志输出到文件
+	f, _ := os.Create("gin.log")
+	//gin.DefaultWriter = io.MultiWriter(f)
+	//如果同时写入文件和控制台可以用
+	gin.DefaultWriter = io.MultiWriter(f, os.Stdout)
+
+	//生产环境，不打印debug日志
+	gin.SetMode(gin.ReleaseMode)
 
 	ginServer := gin.Default()
 
@@ -200,11 +211,20 @@ func main() {
 			session.Clear()
 			session.Save()
 			fmt.Println("处理登出成功")
+		} else if c.Request.URL.Path == "/apps/lw/api/test" {
+			//处理
+			c.Request.Header.Set("x-auth-token", "123333333333333zzzz")
+			c.Request.URL.Path = "/lw2" + c.Param("path")
+			proxy.ServeHTTP(c.Writer, c.Request)
+
 		} else {
 			c.Request.URL.Path = "/lw2" + c.Param("path")
 			fmt.Println("c.Request.URL.Path:", c.Request.URL.Path)
 			session := sessions.Default(c)
-			value := session.Get("userid")
+			value, ok := session.Get("userid").(string)
+			if !ok || len(value) == 0 {
+				fmt.Println("session error")
+			}
 			proxy.ServeHTTP(c.Writer, c.Request)
 		}
 	})
